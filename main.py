@@ -2,7 +2,7 @@
 from tkinter.constants import TRUE
 from tkinter import messagebox as mb
 from gui import GUI
-import mercuri as mer
+import mercari as mer
 import pandas as pd
 import os
 import numpy as np
