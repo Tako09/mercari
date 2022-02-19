@@ -9,11 +9,12 @@ import numpy as np
 
 uf = GUI('MERCARI DISCOUNT')
 already_gained = 0
-csv = 'C:\python\mercari\data\selling_item.csv'
+csv = mer.df_path
+ud = mer.USERDATA_DIR
 
 def first_time_login():
     global uf
-    if already_gained < 1 and not os.path.exists(csv):
+    if already_gained < 1 and not os.path.exists(ud):
         mb.showwarning('注意','ブラウザは自分で閉じてください\nアプリは自動的におちます。')
         mer.login_mercari_first_time()
         uf.destroy(10000)

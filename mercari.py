@@ -25,15 +25,15 @@ import numpy as np
 # フルパスにしておかないとexe化した後にエラーになる
 # グローバル変数の定義
 URL = 'https://jp.mercari.com/mypage/listings' # ここは変更必要
-DRIVER_PATH = r'C:\python\mercari\driver\chromedriver.exe' # 変更必要 - note pc用
-USERDATA_DIR = r'C:\python\mercari\UserData'  # カレントディレクトリの直下に作る場合 - note pc用 
+DRIVER_PATH = './driver/chromedriver.exe' # 変更必要 - note pc用
+USERDATA_DIR = './UserData'  # カレントディレクトリの直下に作る場合 - note pc用 
 df = pd.DataFrame() # 後でほかのファイルに渡せるようにするために変数を定義しておく
 old_df = pd.DataFrame() # 後でほかのファイルに渡せるようにするために変数を定義しておく
-data = 'C:\python\mercari\data'
-df_path = 'C:\python\mercari\data\selling_item.csv'
-error_log_path = 'C:/python/mercari/error_log/'
+data = './data'
+df_path = './data\selling_item.csv'
+error_log_path = './error_log'
 err_flg = False
-backup_path = 'C:/python/mercari/backup/'
+backup_path = './backup'
 
 ## ドライバとログイン情報の設定関数
 def get_driver(page_load_strategy='eager'):
@@ -52,7 +52,7 @@ def get_driver(page_load_strategy='eager'):
             # chrome_service = service.Service(executable_path)
             driver = webdriver.Chrome(
                     service=Service(ChromeDriverManager().install()), # 最新のchromeを使う
-                    # ChromeDriverManager().install(), 
+                    #service=Service(DRIVER_PATH),
                     options=options
                 )
             driver.implicitly_wait(3) # errorが起きた場合に10秒後自動的に閉じるように設定
@@ -62,7 +62,7 @@ def get_driver(page_load_strategy='eager'):
         return driver
     else:
         mb.showwarning('ログイン情報がありません','ログイン情報を取得させる必要があります -自動的にログインページに遷移します。')
-        return 0
+        return login_mercari_first_time()
 
 def login_mercari_first_time():
     # ログイン情報の保持用操作 - 初期設定時のみ使用
@@ -229,7 +229,7 @@ def find_item_info(srcs, item_urls):
         保存先: ' + error_log_path)
         df_error = pd.DataFrame(data=errors, columns=['error_item_urls'])
         # get_csvfile(df_error, name=name, path=error_log_path, csv_needed=False)
-        df_error.to_excel('C:/python/mercari/error_log/error_item_log.xlsx', index=False)
+        df_error.to_excel('error_log/error_item_log.xlsx', index=False)
         err_flg = False
             
     return item_names,item_prices,item_open_days
@@ -348,7 +348,7 @@ def change_mercari_price(driver):
         保存先: ' + error_log_path)
 
         df_error = pd.DataFrame(data=[errors, description], columns=['errror_item_urls', 'discriptions'])
-        df_error.to_excel('C:/python/mercari/error_log/discount_failed_log.xlsx', index=False)
+        df_error.to_excel('error_log/discount_failed_log.xlsx', index=False)
         err_flg = False
     df['changed_price'] = 0 # 値段の変更が完了後はすべてのフラグをfalseに変えておく
 
@@ -409,15 +409,15 @@ def discount_needed():
 def get_df():
     return df
 
-def open_excel(path='C:\python\mercari\data\selling_item.xlsx'):
+def open_excel(path='data\selling_item.xlsx'):
     # excelを開く
     import subprocess
     subprocess.Popen(['start',path], shell=True)
 
-def get_csvfile(df, name='selling_item', path='C:/python/mercari/data/', csv_needed=True):
+def get_csvfile(df, name='selling_item', path='data', csv_needed=True):
     if csv_needed:
-        df.to_csv(path+name+'.csv', index=False)
-    df.to_excel(path+name+'.xlsx', index=False)
+        df.to_csv(path+'/'+name+'.csv', index=False)
+    df.to_excel(path+'/'+name+'.xlsx', index=False)
 
 def selling_date():
     # 7日以上たっているものは値下げされる前提なので特に付与しない
