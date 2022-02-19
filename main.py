@@ -7,9 +7,9 @@ import pandas as pd
 import os
 import numpy as np
 
-uf = GUI('MERCURI DISCOUNT')
+uf = GUI('MERCARI DISCOUNT')
 already_gained = 0
-csv = 'C:\python\mercuri\data\selling_item.csv'
+csv = 'C:\python\mercari\data\selling_item.csv'
 
 def first_time_login():
     global uf

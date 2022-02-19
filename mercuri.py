@@ -1,4 +1,4 @@
-# merucariのスクレイピングをするプログラム
+# mercariのスクレイピングをするプログラム
 # ユーザページから商品名と商品出品日の取得をする
 
 # ライブラリのインストール
@@ -25,15 +25,15 @@ import numpy as np
 # フルパスにしておかないとexe化した後にエラーになる
 # グローバル変数の定義
 URL = 'https://jp.mercari.com/mypage/listings' # ここは変更必要
-DRIVER_PATH = r'C:\python\mercuri\driver\chromedriver.exe' # 変更必要 - note pc用
-USERDATA_DIR = r'C:\python\mercuri\UserData'  # カレントディレクトリの直下に作る場合 - note pc用 
+DRIVER_PATH = r'C:\python\mercari\driver\chromedriver.exe' # 変更必要 - note pc用
+USERDATA_DIR = r'C:\python\mercari\UserData'  # カレントディレクトリの直下に作る場合 - note pc用 
 df = pd.DataFrame() # 後でほかのファイルに渡せるようにするために変数を定義しておく
 old_df = pd.DataFrame() # 後でほかのファイルに渡せるようにするために変数を定義しておく
-data = 'C:\python\mercuri\data'
-df_path = 'C:\python\mercuri\data\selling_item.csv'
-error_log_path = 'C:/python/mercuri/error_log/'
+data = 'C:\python\mercari\data'
+df_path = 'C:\python\mercari\data\selling_item.csv'
+error_log_path = 'C:/python/mercari/error_log/'
 err_flg = False
-backup_path = 'C:/python/mercuri/backup/'
+backup_path = 'C:/python/mercari/backup/'
 
 ## ドライバとログイン情報の設定関数
 def get_driver(page_load_strategy='eager'):
@@ -229,7 +229,7 @@ def find_item_info(srcs, item_urls):
         保存先: ' + error_log_path)
         df_error = pd.DataFrame(data=errors, columns=['error_item_urls'])
         # get_csvfile(df_error, name=name, path=error_log_path, csv_needed=False)
-        df_error.to_excel('C:/python/mercuri/error_log/error_item_log.xlsx', index=False)
+        df_error.to_excel('C:/python/mercari/error_log/error_item_log.xlsx', index=False)
         err_flg = False
             
     return item_names,item_prices,item_open_days
@@ -277,9 +277,9 @@ def update_items():
         
         return merge_df # 増えた分がないときはこれを返す。
 
-def change_mercuri_price(driver):
+def change_mercari_price(driver):
     # 一定の日にちが立った商品をまとめて値下げをする
-    # mercuriのwebサイト変更のため、一時的に無駄な動きをふやしている
+    # mercariのwebサイト変更のため、一時的に無駄な動きをふやしている
     global df
     global old_df
     global err_flg
@@ -348,7 +348,7 @@ def change_mercuri_price(driver):
         保存先: ' + error_log_path)
 
         df_error = pd.DataFrame(data=[errors, description], columns=['errror_item_urls', 'discriptions'])
-        df_error.to_excel('C:/python/mercuri/error_log/discount_failed_log.xlsx', index=False)
+        df_error.to_excel('C:/python/mercari/error_log/discount_failed_log.xlsx', index=False)
         err_flg = False
     df['changed_price'] = 0 # 値段の変更が完了後はすべてのフラグをfalseに変えておく
 
@@ -409,12 +409,12 @@ def discount_needed():
 def get_df():
     return df
 
-def open_excel(path='C:\python\mercuri\data\selling_item.xlsx'):
+def open_excel(path='C:\python\mercari\data\selling_item.xlsx'):
     # excelを開く
     import subprocess
     subprocess.Popen(['start',path], shell=True)
 
-def get_csvfile(df, name='selling_item', path='C:/python/mercuri/data/', csv_needed=True):
+def get_csvfile(df, name='selling_item', path='C:/python/mercari/data/', csv_needed=True):
     if csv_needed:
         df.to_csv(path+name+'.csv', index=False)
     df.to_excel(path+name+'.xlsx', index=False)
@@ -513,7 +513,7 @@ def execute_discount():
     df['selling_date_is_empty'] = df['selling_date'].isnull().astype(int) # selling_dateがあるかどうか
     df['no_discount'] = True
     
-    change_mercuri_price(get_driver())
+    change_mercari_price(get_driver())
     get_csvfile(df)
     get_csvfile(old_df, name='backup_selling_item', path=backup_path)
     #if err_flg:
