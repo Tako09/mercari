@@ -14,10 +14,10 @@ ud = mer.USERDATA_DIR
 
 def first_time_login():
     global uf
-    if already_gained < 1 and not os.path.exists(ud):
+    if already_gained < 1: # and not os.path.exists(ud):
         mb.showwarning('注意','ブラウザは自分で閉じてください\nアプリは自動的におちます。')
         mer.login_mercari_first_time()
-        uf.destroy(10000)
+        uf.destroy(180)
     else:
         mb.showinfo('不要です','登録済です。')
         if mb.askokcancel("開く？", "商品情報を記録したファイルを開くますか？"):

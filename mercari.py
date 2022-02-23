@@ -26,7 +26,7 @@ import numpy as np
 # グローバル変数の定義
 URL = 'https://jp.mercari.com/mypage/listings' # ここは変更必要
 DRIVER_PATH = './driver/chromedriver.exe' # 変更必要 - note pc用
-USERDATA_DIR = './UserData'  # カレントディレクトリの直下に作る場合 - note pc用 
+USERDATA_DIR = r'D:\python\mercari\UserData'  # カレントディレクトリの直下に作る場合 - note pc用 フルパスじゃないとエラーになる
 df = pd.DataFrame() # 後でほかのファイルに渡せるようにするために変数を定義しておく
 old_df = pd.DataFrame() # 後でほかのファイルに渡せるようにするために変数を定義しておく
 data = './data'
@@ -46,7 +46,7 @@ def get_driver(page_load_strategy='eager'):
             options.add_argument('--user-data-dir=' + USERDATA_DIR) # どこにログインパスを格納するか決める
             options.page_load_strategy = page_load_strategy # 処理速度を左右するオプション
             options.add_argument('--disable-extensions')
-            options.add_argument('--disable-gpu')
+            # options.add_argument('--disable-gpu')
 
             # google chromeを起動
             # chrome_service = service.Service(executable_path)
@@ -55,7 +55,7 @@ def get_driver(page_load_strategy='eager'):
                     #service=Service(DRIVER_PATH),
                     options=options
                 )
-            driver.implicitly_wait(3) # errorが起きた場合に10秒後自動的に閉じるように設定
+            driver.implicitly_wait(5) # errorが起きた場合に10秒後自動的に閉じるように設定
             WebDriverWait(driver, 10).until(EC.presence_of_all_elements_located) # ページ上のすべての要素が読み込まれるまで待機（15秒でタイムアウト判定）
         except:        
             mb.showwarning('警告','EXCEPTION\n' + traceback.format_exc())
@@ -74,6 +74,7 @@ def login_mercari_first_time():
     driver = get_driver(page_load_strategy='normal')
     WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located) # ページ上のすべての要素が読み込まれるまで待機（15秒でタイムアウト判定）
     driver.get('https://jp.mercari.com/mypage') # メルカリのログインページへ -> 初回利用時はログイン情報を記録させるのみ
+    time.sleep(1000)
 
     return driver
 
@@ -83,7 +84,7 @@ def login_mercari(driver, url):
     
     try:
         driver.get(url)
-        time.sleep(1) # 5秒後に自動的に閉じる - 変更の必要あり
+        time.sleep(3) # 5秒後に自動的に閉じる - 変更の必要あり
 
         # 「もっと見る」ボタンがあればクリック
         for i in range(100):
@@ -115,7 +116,7 @@ def login_mercari_2(driver, item_urls):
             driver.execute_script("window.open()") # 新しいタブを開く
             driver.switch_to.window(driver.window_handles[1]) # 新しいタブに切り替える
             driver.get(url)
-            time.sleep(3) # 3秒後に自動的に閉じる - 変更の必要あり
+            time.sleep(5) # 5秒後に自動的に閉じる - 変更の必要あり
             srcs.append(driver.page_source)
             driver.close()
             driver.switch_to.window(driver.window_handles[0]) # 切り替えておかないとエラーになる
@@ -138,7 +139,7 @@ def new_items_login_mercari(driver, item_urls, length):
                 driver.execute_script("window.open()") # 新しいタブを開く
                 driver.switch_to.window(driver.window_handles[1]) # 新しいタブに切り替える
                 driver.get(url)
-                time.sleep(3) # 3秒後に自動的に閉じる - 変更の必要あり
+                time.sleep(5) # 3秒後に自動的に閉じる - 変更の必要あり
                 srcs.append(driver.page_source)
                 driver.close()
                 driver.switch_to.window(driver.window_handles[0]) # 切り替えておかないとエラーになる
@@ -183,6 +184,7 @@ def find_item_info(srcs, item_urls):
     # 商品名を見つけるメソッド
     global err_flg
     global error_log_path
+    global df
     item_names = []
     item_prices = []
     item_open_days = []
@@ -221,6 +223,7 @@ def find_item_info(srcs, item_urls):
             err_flg = True
             errors.append(item_urls[i])
             print(item_urls[i])
+            df.drop(index=df.index[[i]])
             pass
 
     if err_flg:
@@ -342,12 +345,15 @@ def change_mercari_price(driver):
             'EXCEPTION\n' + traceback.format_exc()
             + '\n\n' +val[1])
             pass
+    driver.quit()
     if err_flg:
         # エラー処理。処理できなかった商品URLをログに抽出
         mb.showwarning('警告','処理が異常終了した商品があります。ログを確認してください。\n\
         保存先: ' + error_log_path)
 
-        df_error = pd.DataFrame(data=[errors, description], columns=['errror_item_urls', 'discriptions'])
+        df_error = pd.DataFrame()
+        df_error['errors'] = errors
+        df_error['descriptions'] = description 
         df_error.to_excel('error_log/discount_failed_log.xlsx', index=False)
         err_flg = False
     df['changed_price'] = 0 # 値段の変更が完了後はすべてのフラグをfalseに変えておく
@@ -376,6 +382,8 @@ def apply_discount(All='Y'): # 変更必要
                     val[3] = val[3] - int(100)
                 elif 1000 > val[3]: # その他10円引き
                     val[3] = val[3] - int(10)
+                if val[3] <= 300: # 300円以下の時は値段を1500円に戻す
+                    val[3] = 1500
                 new_price.append(val[3])
                 changed.append(int(1))
                 selling_date.append(datetime.date.today())
@@ -414,7 +422,7 @@ def open_excel(path='data\selling_item.xlsx'):
     import subprocess
     subprocess.Popen(['start',path], shell=True)
 
-def get_csvfile(df, name='selling_item', path='data', csv_needed=True):
+def get_csvfile(df=df, name='selling_item', path='data', csv_needed=True):
     if csv_needed:
         df.to_csv(path+'/'+name+'.csv', index=False)
     df.to_excel(path+'/'+name+'.xlsx', index=False)
@@ -464,7 +472,7 @@ def get_item_info():
     page_source = login_mercari(driver, URL)
     item_urls = get_item_urls(page_source)
     edit_urls = get_edit_urls(item_urls)
-    print('DONE!')
+    print('商品数: ', str(len(item_urls)))
     # return item_urls
 
     # 詳細情報の取得
@@ -472,10 +480,13 @@ def get_item_info():
     srcs = login_mercari_2(driver, item_urls)
     print('item info done')
 
-    # return srcs
-    item_names, item_prices, item_open_days = find_item_info(srcs,item_urls)
     df['item_url'] = item_urls # 出品情報
     df['edit_url'] = edit_urls # 出品編集ページ
+
+    # return srcs
+    item_names, item_prices, item_open_days = find_item_info(srcs,item_urls)
+    # df['item_url'] = item_urls # 出品情報
+    # df['edit_url'] = edit_urls # 出品編集ページ
     df['name'] = item_names # 商品名
     df['price'] = item_prices # 値段
     df['past_days'] = item_open_days # 出品日
@@ -488,7 +499,7 @@ def get_item_info():
     df['selling_date'] = selling_date()
     df['selling_date_is_empty'] = df['selling_date'].isnull().astype(int) # selling_dateがあるかどうか
     df['no_discount'] = discount_needed()
-    get_csvfile(df)
+    get_csvfile()
     # if err_flg:
     #    name = 'error_item_log'
     #    open_excel(path=error_log_path+name+'.xlsx')
@@ -514,8 +525,8 @@ def execute_discount():
     df['no_discount'] = True
     
     change_mercari_price(get_driver())
-    get_csvfile(df)
-    get_csvfile(old_df, name='backup_selling_item', path=backup_path)
+    get_csvfile()
+    get_csvfile(old_df, name='backup_selling_item', path=backup_path, csv_needed=False)
     #if err_flg:
     #    name = 'discount_failed_log'
     #    open_excel(path=error_log_path+name+'.xlsx')
@@ -525,7 +536,8 @@ def execute_update():
     global df
     global old_df
     old_df = pd.read_csv(df_path) # バグ対処用
-    get_csvfile(old_df, name='backup_selling_item', path=backup_path)
+    # get_csvfile(old_df, name='backup_selling_item', path=backup_path)
+    get_csvfile(old_df, name='backup_selling_item', path=backup_path, csv_needed=False)
     df = update_items()
 
     os.makedirs(USERDATA_DIR, exist_ok=True) # ログイン情報格納先
@@ -539,7 +551,7 @@ def execute_update():
     df['no_discount'] = discount_needed()
     df['changed_price'] = 0
 
-    get_csvfile(df)
+    get_csvfile()
 
     #if err_flg:
     #    name = 'error_item_log'
