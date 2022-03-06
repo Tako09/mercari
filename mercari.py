@@ -275,7 +275,7 @@ def update_items():
             tmp['past_days'] = tmp['past_days'].replace('  ', ' ')
             tmp['last_updated'] = pd.Series() # 初期時は空にする。
             tmp['selling_date'] = pd.Series() # 初期時は空にする。
-            tmp['no_discount'] = 0 # ダミー値
+            tmp['no_discount'] = 0 # ダミー値 - エラーになる
             tmp['changed_price'] = 0
             tmp['selling_date'] = selling_date(tmp)
             tmp['selling_date'] = pd.to_datetime(tmp['selling_date'], format='%Y-%m-%d')
@@ -441,8 +441,6 @@ def discount_needed(df):
                 else:
                     tmp.append(int(0))
             else:
-                # val[6] = datetime.datetime.strptime(val[6], '%Y-%m-%d')
-                # val[5] = datetime.datetime.strptime(val[5], '%Y-%m-%d')
                 tmp.append(int(val[6] >= val[5] - datetime.timedelta(days=4)))
                 # 修正必要
         return tmp
@@ -466,7 +464,7 @@ def get_csvfile(df, name='selling_item', path='data', csv_needed=True):
     df.to_excel(path+'/'+name+'.xlsx', index=False)
 
 def selling_date(df):
-    # 7日以上たっているものは値下げされる前提なので特に付与しない
+    # 5日以上たっているものは値下げされる前提なので特に付与しない
     tmp = []
     for i,val in enumerate(df.values):
         val[4] = str(val[4])
@@ -482,10 +480,6 @@ def selling_date(df):
                 tmp.append(datetime.date.today() - datetime.timedelta(days=3))
             elif re.match('4日前',val[4]) or re.match('4 日前',val[4]):
                 tmp.append(datetime.date.today() - datetime.timedelta(days=4))
-            elif re.match('5日前',val[4]) or re.match('5 日前',val[4]):
-                tmp.append(datetime.date.today() - datetime.timedelta(days=5))
-            elif re.match('6日前',val[4]) or re.match('6 日前',val[4]):
-                tmp.append(datetime.date.today() - datetime.timedelta(dsays=6))
             else:
                 tmp.append(None)
         except:
@@ -535,14 +529,11 @@ def get_item_info():
 
     # return srcs
     item_names, item_prices, item_open_days = find_item_info(df, srcs,item_urls)
-    # df['item_url'] = item_urls # 出品情報
-    # df['edit_url'] = edit_urls # 出品編集ページ
     df['name'] = item_names # 商品名
     df['price'] = item_prices # 値段
     df['past_days'] = item_open_days # 出品日
     df['last_updated'] = datetime.date.today() # 更新日
     df['last_updated'] = pd.to_datetime(df['last_updated'], format='%Y-%m-%d')
-    # discountが必要かの判断
     df['past_days'] = df['past_days'].replace('  ', ' ')
     df['selling_date'] = pd.Series() # 初期時は空にする。
     df['no_discount'] = pd.Series() # 初期時は空にする。
@@ -583,9 +574,6 @@ def execute_discount():
     
     get_csvfile(df)
     get_csvfile(old_df, name='selling_item', path=backup_path, csv_needed=False)
-    #if err_flg:
-    #    name = 'discount_failed_log'
-    #    open_excel(path=error_log_path+name+'.xlsx')
 
 def execute_update():
     # update時はこれを参照
@@ -611,9 +599,3 @@ def execute_update():
     os.makedirs(backup_path, exist_ok=True) # バックアップ格納先
 
     get_csvfile(df)
-
-    #if err_flg:
-    #    name = 'error_item_log'
-    #    open_excel(path=error_log_path+name+'.xlsx')
-
-# login_mercari_first_time()
