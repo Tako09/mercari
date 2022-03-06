@@ -116,7 +116,7 @@ def login_mercari_2(driver, item_urls):
             driver.execute_script("window.open()") # 新しいタブを開く
             driver.switch_to.window(driver.window_handles[1]) # 新しいタブに切り替える
             driver.get(url)
-            time.sleep(5) # 5秒後に自動的に閉じる - 変更の必要あり
+            time.sleep(2) # 5秒後に自動的に閉じる - 変更の必要あり
             srcs.append(driver.page_source)
             driver.close()
             driver.switch_to.window(driver.window_handles[0]) # 切り替えておかないとエラーになる
@@ -180,11 +180,10 @@ def get_edit_urls(item_urls):
     edit_urls = [url.replace('/item/', '/sell/edit/', 1) for url in item_urls]
     return edit_urls
 
-def find_item_info(srcs, item_urls):
+def find_item_info(df, srcs, item_urls):
     # 商品名を見つけるメソッド
     global err_flg
     global error_log_path
-    global df
     item_names = []
     item_prices = []
     item_open_days = []
@@ -218,8 +217,6 @@ def find_item_info(srcs, item_urls):
             i += 1
 
         except Exception as e:
-            
-            i += 1
             err_flg = True
             errors.append(item_urls[i])
             print(item_urls[i])
@@ -249,36 +246,55 @@ def update_items():
         item_urls = get_item_urls(page_source)
 
         tmp_df = pd.read_csv(df_path)
-        tmp_df2 = pd.DataFrame({'item_url':item_urls})
+        tmp_df2 = pd.DataFrame({'new_item_url':item_urls})
+        
+        # URL: tmp_dfあり、tmp_df2なし → 商品は売れてる → 削除
+        # URL: tmp_dfなし、tmp_df2あり → 新しい商品 → 情報取得必要
+        # URL: 全一致 → 更新不要 
+        merge_df = tmp_df.merge(tmp_df2, how='outer', left_on='item_url', right_on='new_item_url') # 外部結合を実施。左：tmp_df, 右：tmp_df2
+        update_needed_itemURLs = merge_df[merge_df['item_url'].isnull()]['new_item_url'].tolist() # 追加された商品。情報の取得必要
+        merge_df.dropna(subset=['item_url'], inplace=True, axis=0) # 追加する商品。またconcatで追加するため邪魔になる。
+        merge_df.dropna(subset=['new_item_url'], inplace=True, axis=0) # 売れた商品なので削除。
+        merge_df.drop('new_item_url', inplace=True, axis=1) # 必要ないので削除
 
-        merge_df = tmp_df.merge(tmp_df2, how='inner', on='item_url') # 売れた商品のそぎ落とし
-
-        length = len(merge_df) # 次の処理時の始まりのインデックスになる
-        length2 = len(item_urls)
-
-        if not length == length2:
+        if len(update_needed_itemURLs) > 0:
             # 増えた分があるときのみ実行
-            srcs = new_items_login_mercari(get_driver(),item_urls,length) # 必要なインデックスから
-            edit_urls = get_edit_urls(item_urls[length:]) # 必要なインデックスから
-            item_names,item_prices,item_open_days = find_item_info(srcs,item_urls)
+            
+            # 追加商品の情報を取得
+            srcs = login_mercari_2(get_driver(), update_needed_itemURLs)
+            edit_urls = get_edit_urls(update_needed_itemURLs)
+            tmp = pd.DataFrame()
+            item_names,item_prices,item_open_days = find_item_info(tmp, srcs,update_needed_itemURLs)
 
             tmp = pd.DataFrame()
-            tmp['item_url'] = item_urls[length:] # 出品情報
+            tmp['item_url'] = update_needed_itemURLs # 出品情報
             tmp['edit_url'] = edit_urls # 出品編集ページ
             tmp['name'] = item_names # 商品名
             tmp['price'] = item_prices # 値段
             tmp['past_days'] = item_open_days # 出品日
-            print(tmp)
             tmp['past_days'] = tmp['past_days'].replace('  ', ' ')
             tmp['last_updated'] = pd.Series() # 初期時は空にする。
             tmp['selling_date'] = pd.Series() # 初期時は空にする。
-            tmp['no_discount'] = pd.Series() # 初期時は空にする。
-            tmp['changed_price'] = pd.Series() # 初期時は空にする。
-            tmp['selling_date_is_empty'] = pd.Series() # 初期時は空にする。
+            tmp['no_discount'] = 0 # ダミー値
+            tmp['changed_price'] = 0
+            tmp['selling_date'] = selling_date(tmp)
+            tmp['selling_date'] = pd.to_datetime(tmp['selling_date'], format='%Y-%m-%d')
+            print(tmp['selling_date'])
+            tmp['selling_date_is_empty'] = tmp['selling_date'].isnull().astype(int) # selling_dateがあるかどうか
+            change_data_type(tmp)
 
-            return pd.concat([merge_df,tmp], axis=0, join='inner') # 新しい要素は下に追加され
+            return pd.concat([merge_df,tmp], join='inner')
         
         return merge_df # 増えた分がないときはこれを返す。
+    return 0
+
+def button_click(button_text):
+    buttons = driver.find_elements_by_tag_name("button")
+
+    for button in buttons:
+        if button.text == button_text:
+            button.click()
+            break
 
 def change_mercari_price(driver):
     # 一定の日にちが立った商品をまとめて値下げをする
@@ -303,37 +319,47 @@ def change_mercari_price(driver):
                 driver.switch_to.window(driver.window_handles[1]) # 新しいタブに切り替える
                 driver.get(val[1])
                 time.sleep(3)
-                WebDriverWait(driver, 3).until(EC.presence_of_all_elements_located) # ページ上のすべての要素が読み込まれるまで待機（15秒でタイムアウト判定）
+                WebDriverWait(driver, 3).until(EC.presence_of_all_elements_located) # ページ上のすべての要素が読み込まれるまで待機（3秒でタイムアウト判定）
                 ele1 = driver.find_element(By.NAME,"price")
                 ele2 = driver.find_element(By.XPATH, '//*[@id="main"]/form/div[2]/mer-button[1]/button')
+                # ele2 = driver.find_element(By.cssSelector("a[class=c-pager__next']"))
                 ele3 = driver.find_element(By.XPATH, '//*[@id="main"]/form/section[3]/mer-textarea/div/label/textarea[1]')
+                
+                # 値段の変更
                 ele1.send_keys(Keys.CONTROL + "a")
                 ele1.send_keys(Keys.DELETE)
                 ele1.send_keys(str(val[3]))
-                # time.sleep(5) # 確認用
+                
                 ele2.click()
-                time.sleep(1)
+                
                 try: # 暫定的な処理 - 値段変更後にクリックすると説明欄に飛ぶ現象がある。
                     ele3.send_keys(Keys.ENTER)
                     ele3.send_keys(Keys.BACK_SPACE)
-                    # time.sleep(5) # 確認用
+                    # button_click('変更する')
                     ele2.click()
-                    time.sleep(1)
+                    time.sleep(5)
                 except:
                     err_flg = True 
                     errors.append(val[1])
                     description.append('webサイト変更のためのバグなし')
-                    pass
+                    
+                    driver.close()
+                    driver.switch_to.window(driver.window_handles[0]) # 切り替えておかないとエラーになる
+                    continue
+                
                 try: # 暫定的な処理 - 変更ボタンクリック後警告メッセージが出る場合がある。
                     driver.find_element(By.XPATH,'/html/body/mer-modal/div[2]/mer-button[2]/button').click()
-                    # time.sleep(5) # 確認用
                     time.sleep(1)
                 except:
                     err_flg = True 
                     errors.append(val[1])
                     description.append('警告文の表示なし')
-                    pass
+                    driver.close()
+                    driver.switch_to.window(driver.window_handles[0]) # 切り替えておかないとエラーになる
+                    continue
+                
                 driver.close() # 現在開いてるタブを閉じる
+                time.sleep(0.5)
                 driver.switch_to.window(driver.window_handles[0]) # 切り替えておかないとエラーになる
         except: # errorが出てもうごくようにする。 
             err_flg = True 
@@ -344,6 +370,9 @@ def change_mercari_price(driver):
             print(
             'EXCEPTION\n' + traceback.format_exc()
             + '\n\n' +val[1])
+            driver.close() # 現在開いてるタブを閉じる
+            time.sleep(0.5)
+            driver.switch_to.window(driver.window_handles[0]) # 切り替えておかないとエラーになる
             pass
     driver.quit()
     if err_flg:
@@ -372,7 +401,7 @@ def apply_discount(All='Y'): # 変更必要
         # 1週間たっているitemすべて値引き
         for i,val in enumerate(df.values):
             if val[7]:
-                new_price.append(val[3])
+                new_price.append(int(val[3]))
                 changed.append(int(0))
                 selling_date.append(val[6])
             else:
@@ -384,7 +413,7 @@ def apply_discount(All='Y'): # 変更必要
                     val[3] = val[3] - int(10)
                 if val[3] <= 300: # 300円以下の時は値段を1500円に戻す
                     val[3] = 1500
-                new_price.append(val[3])
+                new_price.append(int(val[3]))
                 changed.append(int(1))
                 selling_date.append(datetime.date.today())
                 print('値段変更')
@@ -392,26 +421,29 @@ def apply_discount(All='Y'): # 変更必要
                 
     return new_price,changed,selling_date # 新しい値段、変更フラグ、販売日を返す
 
-def discount_needed():
+def discount_needed(df):
     # 値下げが必要かのフラグを付与する関数
-    global df
     df['selling_date_is_empty'] = df['selling_date'].isnull().astype(int) # selling_dateがあるかどうか
+    df['last_updated'] = pd.to_datetime(df['last_updated'], format='%Y-%m-%d')
+    df['selling_date'] = pd.to_datetime(df['selling_date'], format='%Y-%m-%d')
     tmp = []
     try:
         for i,val in enumerate(df.values):
             if val[9]: # datetimeの出品日がない場合はスクレイピングで取得したものを使用する:
-                if re.match('[1-6] 日前|[1-6]日前|.*秒前|.*分前|.*時間前|.*時前',val[4]):
+                if re.match('[1-4] 日前|[1-4]日前|.*秒前|.*分前|.*時間前|.*時前',str(val[4])):
                     tmp.append(int(1))
                 else:
                     tmp.append(int(0))
             else:
-                tmp.append(int(datetime.datetime.strptime(str(val[6]), r'%Y-%m-%d') >=
-                    datetime.datetime.strptime(str(val[5] - datetime.timedelta(days=6)), r'%Y-%m-%d')))
+                # val[6] = datetime.datetime.strptime(val[6], '%Y-%m-%d')
+                # val[5] = datetime.datetime.strptime(val[5], '%Y-%m-%d')
+                tmp.append(int(val[6] >= val[5] - datetime.timedelta(days=4)))
+                # 修正必要
         return tmp
     except:
         mb.showwarning('警告',
         'EXCEPTION\n' + traceback.format_exc()
-        + '\n\n' + val[1]
+        + '\n\n' + str(val[1])
         )
 
 def get_df():
@@ -422,38 +454,50 @@ def open_excel(path='data\selling_item.xlsx'):
     import subprocess
     subprocess.Popen(['start',path], shell=True)
 
-def get_csvfile(df=df, name='selling_item', path='data', csv_needed=True):
+def get_csvfile(df, name='selling_item', path='data', csv_needed=True):
     if csv_needed:
         df.to_csv(path+'/'+name+'.csv', index=False)
     df.to_excel(path+'/'+name+'.xlsx', index=False)
 
-def selling_date():
+def selling_date(df):
     # 7日以上たっているものは値下げされる前提なので特に付与しない
-    global df 
     tmp = []
     for i,val in enumerate(df.values):
+        val[4] = str(val[4])
         try:
-            if np.isnan(val[6]): # selling_dateがnullの時のみ実行
-                p = re.compile(r'.*秒前|.*分前|.*時間前|.*時前')
-                if p.match(val[4]):
-                    tmp.append(datetime.date.today())
-                elif re.match('1日前', val[4]) or re.match('1 日前', val[4]):
-                    tmp.append(datetime.date.today() - datetime.timedelta(days=1))
-                elif re.match('2日前', val[4]) or re.match('2 日前', val[4]):
-                    tmp.append(datetime.date.today() - datetime.timedelta(days=2))
-                elif re.match('3日前',val[4]) or re.match('3 日前',val[4]):
-                    tmp.append(datetime.date.today() - datetime.timedelta(days=3))
-                elif re.match('4日前',val[4]) or re.match('4 日前',val[4]):
-                    tmp.append(datetime.date.today() - datetime.timedelta(days=4))
-                elif re.match('5日前',val[4]) or re.match('5 日前',val[4]):
-                    tmp.append(datetime.date.today() - datetime.timedelta(days=5))
-                elif re.match('6日前',val[4]) or re.match('6 日前',val[4]):
-                    tmp.append(datetime.date.today() - datetime.timedelta(dsays=6))
-                else:
-                    tmp.append(None)
+            p = re.compile(r'.*秒前|.*分前|.*時間前|.*時前')
+            if p.match(val[4]):
+                tmp.append(datetime.date.today())
+            elif re.match('1日前', val[4]) or re.match('1 日前', val[4]):
+                tmp.append(datetime.date.today() - datetime.timedelta(days=1))
+            elif re.match('2日前', val[4]) or re.match('2 日前', val[4]):
+                tmp.append(datetime.date.today() - datetime.timedelta(days=2))
+            elif re.match('3日前',val[4]) or re.match('3 日前',val[4]):
+                tmp.append(datetime.date.today() - datetime.timedelta(days=3))
+            elif re.match('4日前',val[4]) or re.match('4 日前',val[4]):
+                tmp.append(datetime.date.today() - datetime.timedelta(days=4))
+            elif re.match('5日前',val[4]) or re.match('5 日前',val[4]):
+                tmp.append(datetime.date.today() - datetime.timedelta(days=5))
+            elif re.match('6日前',val[4]) or re.match('6 日前',val[4]):
+                tmp.append(datetime.date.today() - datetime.timedelta(dsays=6))
+            else:
+                tmp.append(None)
         except:
-            tmp.append(val[6])
+            tmp.append(None)
     return tmp
+
+def change_data_type(df):
+    # 型を一定にするための関数
+    df['item_url'] = df['item_url'].astype(str)
+    df['edit_url'] = df['edit_url'].astype(str)
+    df['name'] = df['name'].astype(str)
+    df['price'] = df['price'].astype(int) # 値段
+    df['past_days'] = df['past_days'].astype(str)
+    df['last_updated'] = pd.to_datetime(df['last_updated'], format='%Y-%m-%d')
+    df['selling_date'] = pd.to_datetime(df['selling_date'], format='%Y-%m-%d')
+    df['no_discount'] = df['no_discount'].astype(int)
+    df['changed_price'] = df['changed_price'].astype(int)
+    df['selling_date_is_empty'] = df['selling_date_is_empty'].astype(int) # selling_dateがあるかどうか
 
 def get_item_info():
     # item情報をとるための関数をすべてじっこうする
@@ -484,25 +528,27 @@ def get_item_info():
     df['edit_url'] = edit_urls # 出品編集ページ
 
     # return srcs
-    item_names, item_prices, item_open_days = find_item_info(srcs,item_urls)
+    item_names, item_prices, item_open_days = find_item_info(df, srcs,item_urls)
     # df['item_url'] = item_urls # 出品情報
     # df['edit_url'] = edit_urls # 出品編集ページ
     df['name'] = item_names # 商品名
     df['price'] = item_prices # 値段
     df['past_days'] = item_open_days # 出品日
     df['last_updated'] = datetime.date.today() # 更新日
+    df['last_updated'] = pd.to_datetime(df['last_updated'], format='%Y-%m-%d')
     # discountが必要かの判断
     df['past_days'] = df['past_days'].replace('  ', ' ')
     df['selling_date'] = pd.Series() # 初期時は空にする。
     df['no_discount'] = pd.Series() # 初期時は空にする。
     df['changed_price'] = 0
-    df['selling_date'] = selling_date()
+    df['selling_date'] = selling_date(df)
+    df['selling_date'] = pd.to_datetime(df['selling_date'], format='%Y-%m-%d')
     df['selling_date_is_empty'] = df['selling_date'].isnull().astype(int) # selling_dateがあるかどうか
-    df['no_discount'] = discount_needed()
-    get_csvfile()
-    # if err_flg:
-    #    name = 'error_item_log'
-    #    open_excel(path=error_log_path+name+'.xlsx')
+    df['no_discount'] = discount_needed(df)
+    
+    change_data_type(df)
+    
+    get_csvfile(df)
 
 def execute_discount():
     # 値下げを実行するための関数
@@ -511,6 +557,7 @@ def execute_discount():
     global old_df
     df = pd.read_csv(df_path) # でーたを読み込み
     old_df = pd.read_csv(df_path) # バグ対処用
+    change_data_type(df)
 
     os.makedirs(USERDATA_DIR, exist_ok=True) # ログイン情報格納先
     os.makedirs(data, exist_ok=True) # 商品データ格納先
@@ -521,12 +568,15 @@ def execute_discount():
     df['price'] = new_price
     df['changed_price'] = changed
     df['selling_date'] = sell_date
+    df['selling_date'] = pd.to_datetime(df['selling_date'], format='%Y-%m-%d')
     df['selling_date_is_empty'] = df['selling_date'].isnull().astype(int) # selling_dateがあるかどうか
     df['no_discount'] = True
     
     change_mercari_price(get_driver())
-    get_csvfile()
-    get_csvfile(old_df, name='backup_selling_item', path=backup_path, csv_needed=False)
+    change_data_type(df)
+    
+    get_csvfile(df)
+    get_csvfile(old_df, name='selling_item', path=backup_path, csv_needed=False)
     #if err_flg:
     #    name = 'discount_failed_log'
     #    open_excel(path=error_log_path+name+'.xlsx')
@@ -537,22 +587,27 @@ def execute_update():
     global old_df
     old_df = pd.read_csv(df_path) # バグ対処用
     # get_csvfile(old_df, name='backup_selling_item', path=backup_path)
-    get_csvfile(old_df, name='backup_selling_item', path=backup_path, csv_needed=False)
+    get_csvfile(old_df, name='selling_item', path=backup_path)
+    df = df.iloc[0:0]
     df = update_items()
+    
+    # df['selling_date'] = pd.to_datetime(df['selling_date'], format='%Y-%m-%d')
+    df['selling_date_is_empty'] = df['selling_date'].isnull().astype(int) # selling_dateがあるかどうか
+    df['last_updated'] = datetime.date.today() # 更新日
+    df['last_updated'] = pd.to_datetime(df['last_updated'], format='%Y-%m-%d')
+    df['no_discount'] = discount_needed(df)
+    
+    change_data_type(df)
 
     os.makedirs(USERDATA_DIR, exist_ok=True) # ログイン情報格納先
     os.makedirs(data, exist_ok=True) # 商品データ格納先
     os.makedirs(error_log_path, exist_ok=True) # エラーログ格納先
     os.makedirs(backup_path, exist_ok=True) # バックアップ格納先
 
-    df['last_updated'] = datetime.date.today()
-    df['selling_date_is_empty'] = df['selling_date'].isnull().astype(int) # selling_dateがあるかどうか
-    df['selling_date'] = selling_date()
-    df['no_discount'] = discount_needed()
-    df['changed_price'] = 0
-
-    get_csvfile()
+    get_csvfile(df)
 
     #if err_flg:
     #    name = 'error_item_log'
     #    open_excel(path=error_log_path+name+'.xlsx')
+
+# login_mercari_first_time()
