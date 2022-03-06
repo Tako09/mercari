@@ -56,7 +56,7 @@ def update_item():
 
 def discount_item():
     global already_gained
-    if already_gained >= 1:
+    if already_gained >= 0:
         mb.showinfo('安心して','ブラウザは自動的に閉じられます')
         mer.execute_discount()
         mb.showinfo('DONE','完了しました！')

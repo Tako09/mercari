@@ -213,7 +213,7 @@ def find_item_info(df, srcs, item_urls):
             for text in mer_text:
                 if p.search(text.text):
                     tmp.append(text.text)
-            item_open_days.append(str(tmp[-1])) # 最後に入った値のみ挿入
+            item_open_days.append(str(tmp[-1])) # 最後に入った値のみ挿入。
             i += 1
 
         except Exception as e:
@@ -288,10 +288,12 @@ def update_items():
         return merge_df # 増えた分がないときはこれを返す。
     return 0
 
-def button_click(button_text):
-    buttons = driver.find_elements_by_tag_name("button")
+def button_click(driver, button_text):
+    buttons = driver.find_elements(By.TAG_NAME, "button")
 
     for button in buttons:
+        # 他のサイトなら使えると思う
+        print(button.text)
         if button.text == button_text:
             button.click()
             break
@@ -321,9 +323,10 @@ def change_mercari_price(driver):
                 time.sleep(3)
                 WebDriverWait(driver, 3).until(EC.presence_of_all_elements_located) # ページ上のすべての要素が読み込まれるまで待機（3秒でタイムアウト判定）
                 ele1 = driver.find_element(By.NAME,"price")
-                ele2 = driver.find_element(By.XPATH, '//*[@id="main"]/form/div[2]/mer-button[1]/button')
-                # ele2 = driver.find_element(By.cssSelector("a[class=c-pager__next']"))
-                ele3 = driver.find_element(By.XPATH, '//*[@id="main"]/form/section[3]/mer-textarea/div/label/textarea[1]')
+                # ele2 = driver.find_element(By.XPATH, '//*[@id="main"]/form/div[2]/mer-button[1]/button') # 動くけど挙動がおかしい
+                ele2 = driver.find_element(By.CSS_SELECTOR, 'button[type="submit"][data-testid="edit-button"][data-location="sell_edit:sell_form:button:edit"]') # 動くけど挙動がおかしいけど、出品停止に対応できる
+                # ele3 = driver.find_element(By.XPATH, '//*[@id="main"]/form/section[3]/mer-textarea/div/label/textarea[1]')
+                ele3 = driver.find_element(By.CSS_SELECTOR, 'textarea[class="input-node"][name="description"]') # xpathより各編集画面の微細な変化に強いはず
                 
                 # 値段の変更
                 ele1.send_keys(Keys.CONTROL + "a")
@@ -331,6 +334,8 @@ def change_mercari_price(driver):
                 ele1.send_keys(str(val[3]))
                 
                 ele2.click()
+                # button_click(driver, '変更する') 同じく挙動がおかしい。ボタンは押せる変化に一番強い
+                time.sleep(5)
                 
                 try: # 暫定的な処理 - 値段変更後にクリックすると説明欄に飛ぶ現象がある。
                     ele3.send_keys(Keys.ENTER)
@@ -367,6 +372,7 @@ def change_mercari_price(driver):
             description.append('値下げの失敗')
             df['no_discount'][i] = False # フラグを戻す
             df['price'][i] = old_df['price'][i] # 変更前の値段に戻す
+            df['selling_date'][i] = old_df['selling_date'][i] # 変更前の値段に戻す
             print(
             'EXCEPTION\n' + traceback.format_exc()
             + '\n\n' +val[1])
