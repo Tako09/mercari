@@ -336,14 +336,14 @@ def change_mercari_price(driver):
                 
                 ele2.click()
                 # button_click(driver, '変更する') 同じく挙動がおかしい。ボタンは押せる変化に一番強い
-                time.sleep(5)
+                time.sleep(1)
                 
                 try: # 暫定的な処理 - 値段変更後にクリックすると説明欄に飛ぶ現象がある。
                     ele3.send_keys(Keys.ENTER)
                     ele3.send_keys(Keys.BACK_SPACE)
                     # button_click('変更する')
                     ele2.click()
-                    time.sleep(5)
+                    time.sleep(1)
                 except:
                     err_flg = True 
                     errors.append(val[1])
