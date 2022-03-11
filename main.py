@@ -74,12 +74,3 @@ uf.label(frame, text='2回目以降の操作:', side='left', grid=True, column=0
 uf.button(frame, side='left', command=update_item, text='商品情報の更新', row=3, column=1, pady=0, padx=20, grid=TRUE)
 uf.button(frame, side='left', command=discount_item, text='商品の値下げ', row=3, column=3, pady=0, padx=20, grid=TRUE)
 uf.end()
-
-# 自動実行の手引き
-# 初期設定済が前提条件
-# 更新＆値下げ用のpyファイルを作る(exeしたほうが設定楽かも)
-# 毎日起動させる
-# 更新はログイン時強制的に行う、ロジックに従い値下げ必要なものがあるときメッセージをだす
-# 値下げをしたいと出たとき値下げをおこなう
-# 失敗しているか見たいから、バックアップをとるようにする(既存ファイルを退避)
-# 完了と同時にエクセルを開くようにしておく

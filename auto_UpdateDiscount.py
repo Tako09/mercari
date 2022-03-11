@@ -13,17 +13,13 @@ path = 'data\selling_item.csv'
 def update_discount():
     # 更新と値下げを実行する関数
 
-    # 更新
     if os.path.exists(path):
         print('メルカリの出品情報の更新を行います。')
         mer.execute_update()
         df = mer.get_df()
-        # if mb.askokcancel("開く？", "商品情報を記録したファイルを開くますか？"):
-        #     mer.open_excel()
     else:
         print('商品情報が記録されたファイルがありません。')
 
-    # 値下げ
     if '1' in str(df['no_discount'].unique()):
         num = dict(df['no_discount'].value_counts())[0]
         print("値下げ対象の商品が"+str(num)+"件あります。\n値下げを実行します")

@@ -25,12 +25,11 @@ import numpy as np
 # フルパスにしておかないとexe化した後にエラーになる
 # グローバル変数の定義
 URL = 'https://jp.mercari.com/mypage/listings' # ここは変更必要
-DRIVER_PATH = './driver/chromedriver.exe' # 変更必要 - note pc用
-USERDATA_DIR = r'D:\python\mercari\UserData'  # カレントディレクトリの直下に作る場合 - note pc用 フルパスじゃないとエラーになる
+USERDATA_DIR = r'D:\python\mercari\UserData'  # カレントディレクトリの直下に作る場合 - フルパスじゃないとエラーになる
 df = pd.DataFrame() # 後でほかのファイルに渡せるようにするために変数を定義しておく
 old_df = pd.DataFrame() # 後でほかのファイルに渡せるようにするために変数を定義しておく
 data = './data'
-df_path = './data\selling_item.csv'
+df_path = './data/selling_item.csv'
 error_log_path = './error_log'
 err_flg = False
 backup_path = './backup'
@@ -52,7 +51,6 @@ def get_driver(page_load_strategy='eager'):
             # chrome_service = service.Service(executable_path)
             driver = webdriver.Chrome(
                     service=Service(ChromeDriverManager().install()), # 最新のchromeを使う
-                    #service=Service(DRIVER_PATH),
                     options=options
                 )
             driver.implicitly_wait(5) # errorが起きた場合に10秒後自動的に閉じるように設定
@@ -64,18 +62,21 @@ def get_driver(page_load_strategy='eager'):
     else:
         mb.showwarning('ログイン情報がありません','ログイン情報を取得させる必要があります -自動的にログインページに遷移します。')
         return login_mercari_first_time()
-
-def login_mercari_first_time():
-    # ログイン情報の保持用操作 - 初期設定時のみ使用
-
+    
+def make_dir():
     os.makedirs(USERDATA_DIR, exist_ok=True) # ログイン情報格納先
     os.makedirs(data, exist_ok=True) # 商品データ格納先
     os.makedirs(error_log_path, exist_ok=True) # エラーログ格納先
     os.makedirs(backup_path, exist_ok=True) # バックアップ格納先
+
+def login_mercari_first_time():
+    # ログイン情報の保持用操作 - 初期設定時のみ使用
+    
+    make_dir()
     driver = get_driver(page_load_strategy='normal')
     WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located) # ページ上のすべての要素が読み込まれるまで待機（15秒でタイムアウト判定）
     driver.get('https://jp.mercari.com/mypage') # メルカリのログインページへ -> 初回利用時はログイン情報を記録させるのみ
-    time.sleep(1000)
+    time.sleep(300)
 
     return driver
 
@@ -505,11 +506,7 @@ def get_item_info():
     # 初期実行時のみ使用
     global df
     global df_path
-
-    os.makedirs(USERDATA_DIR, exist_ok=True) # ログイン情報格納先
-    os.makedirs(data, exist_ok=True) # 商品データ格納先
-    os.makedirs(error_log_path, exist_ok=True) # エラーログ格納先
-    os.makedirs(backup_path, exist_ok=True) # バックアップ格納先
+    make_dir()
 
     # 各itemのurlの取得
     print('各商品の詳細情報のurlを取得中！')
@@ -556,11 +553,7 @@ def execute_discount():
     df = pd.read_csv(df_path) # でーたを読み込み
     old_df = pd.read_csv(df_path) # バグ対処用
     change_data_type(df)
-
-    os.makedirs(USERDATA_DIR, exist_ok=True) # ログイン情報格納先
-    os.makedirs(data, exist_ok=True) # 商品データ格納先
-    os.makedirs(error_log_path, exist_ok=True) # エラーログ格納先
-    os.makedirs(backup_path, exist_ok=True) # バックアップ格納先
+    make_dir()
 
     new_price,changed,sell_date = apply_discount(All='Y')
     df['price'] = new_price
@@ -593,10 +586,5 @@ def execute_update():
     df['no_discount'] = discount_needed(df)
     
     change_data_type(df)
-
-    os.makedirs(USERDATA_DIR, exist_ok=True) # ログイン情報格納先
-    os.makedirs(data, exist_ok=True) # 商品データ格納先
-    os.makedirs(error_log_path, exist_ok=True) # エラーログ格納先
-    os.makedirs(backup_path, exist_ok=True) # バックアップ格納先
-
+    make_dir()
     get_csvfile(df)
