@@ -436,6 +436,8 @@ def discount_needed(df):
     tmp = []
     try:
         for i,val in enumerate(df.values):
+            if re.match('.*様専用', val[2]): # ～様専用は無視する
+                continue
             if val[9]: # datetimeの出品日がない場合はスクレイピングで取得したものを使用する:
                 if re.match('[1-4] 日前|[1-4]日前|.*秒前|.*分前|.*時間前|.*時前',str(val[4])):
                     tmp.append(int(1))
