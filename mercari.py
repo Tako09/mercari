@@ -58,7 +58,8 @@ def get_driver(page_load_strategy='eager'):
             driver.implicitly_wait(5) # errorが起きた場合に10秒後自動的に閉じるように設定
             WebDriverWait(driver, 10).until(EC.presence_of_all_elements_located) # ページ上のすべての要素が読み込まれるまで待機（15秒でタイムアウト判定）
         except:        
-            mb.showwarning('警告','EXCEPTION\n' + traceback.format_exc())
+            mb.showwarning('警告','driverの準備ができませんでした\n')
+            return 0 
         return driver
     else:
         mb.showwarning('ログイン情報がありません','ログイン情報を取得させる必要があります -自動的にログインページに遷移します。')
