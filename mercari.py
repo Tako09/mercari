@@ -24,7 +24,8 @@ import numpy as np
 
 # フルパスにしておかないとexe化した後にエラーになる
 # グローバル変数の定義
-URL = 'https://jp.mercari.com/mypage/listings' # ここは変更必要
+URL = r'https://jp.mercari.com/mypage/listings' # ここは変更必要
+# 'https://jp.mercari.com/mypage/listings'
 USERDATA_DIR = r'D:\python\mercari\UserData'  # カレントディレクトリの直下に作る場合 - フルパスじゃないとエラーになる
 df = pd.DataFrame() # 後でほかのファイルに渡せるようにするために変数を定義しておく
 old_df = pd.DataFrame() # 後でほかのファイルに渡せるようにするために変数を定義しておく
@@ -86,13 +87,14 @@ def login_mercari(driver, url):
     
     try:
         driver.get(url)
-        time.sleep(3) # 5秒後に自動的に閉じる - 変更の必要あり
-
+        time.sleep(2) # 5秒後に自動的に閉じる - 変更の必要あり
         # 「もっと見る」ボタンがあればクリック
         for i in range(100):
             try:
-                ele = driver.find_element(By.XPATH, '//*[@id="currentListing"]/div/mer-button/button')
-                ele.click()
+                click_flg = button_click(driver, 'もっと見る')
+                time.sleep(0.5)
+                if not click_flg:
+                    break
             except:
                 break
     except:        
@@ -227,7 +229,7 @@ def find_item_info(df, srcs, item_urls):
 
     if err_flg:
         # エラー処理。処理できなかった商品URLをログに抽出
-        mb.showwarning('警告','処理できていない商品があります。エラーログを見て存在している商品か確認してください。\n\
+        print('処理できていない商品があります。エラーログを見て存在している商品か確認してください。\n\
         保存先: ' + error_log_path)
         df_error = pd.DataFrame(data=errors, columns=['error_item_urls'])
         # get_csvfile(df_error, name=name, path=error_log_path, csv_needed=False)
@@ -292,13 +294,16 @@ def update_items():
 
 def button_click(driver, button_text):
     buttons = driver.find_elements(By.TAG_NAME, "button")
-
+    time.sleep(1) # 探しきれずスルーする時がある
+    clicked = False
     for button in buttons:
-        # 他のサイトなら使えると思う
-        print(button.text)
+        # 指定のテキスト文字が入ってるボタンをクリックする
+        # print(button.text)
         if button.text == button_text:
             button.click()
-            break
+            clicked = True
+    return clicked
+            
 
 def change_mercari_price(driver):
     # 一定の日にちが立った商品をまとめて値下げをする
@@ -327,7 +332,6 @@ def change_mercari_price(driver):
                 ele1 = driver.find_element(By.NAME,"price")
                 # ele2 = driver.find_element(By.XPATH, '//*[@id="main"]/form/div[2]/mer-button[1]/button') # 動くけど挙動がおかしい
                 ele2 = driver.find_element(By.CSS_SELECTOR, 'button[type="submit"][data-testid="edit-button"][data-location="sell_edit:sell_form:button:edit"]') # 動くけど挙動がおかしいけど、出品停止に対応できる
-                # ele3 = driver.find_element(By.XPATH, '//*[@id="main"]/form/section[3]/mer-textarea/div/label/textarea[1]')
                 ele3 = driver.find_element(By.CSS_SELECTOR, 'textarea[class="input-node"][name="description"]') # xpathより各編集画面の微細な変化に強いはず
                 
                 # 値段の変更
@@ -385,7 +389,7 @@ def change_mercari_price(driver):
     driver.quit()
     if err_flg:
         # エラー処理。処理できなかった商品URLをログに抽出
-        mb.showwarning('警告','処理が異常終了した商品があります。ログを確認してください。\n\
+        print('処理が異常終了した商品があります。ログを確認してください。\n\
         保存先: ' + error_log_path)
 
         df_error = pd.DataFrame()
@@ -588,3 +592,5 @@ def execute_update():
     change_data_type(df)
     make_dir()
     get_csvfile(df)
+    
+# login_mercari_first_time()
