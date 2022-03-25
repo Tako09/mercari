@@ -9,11 +9,10 @@ import mercari as mer
 import os
 import time
 
-path = 'data\selling_item.csv'
+path = mer.df_path
 
 def update_discount():
     # 更新と値下げを実行する関数
-
     if os.path.exists(path):
         print('メルカリの出品情報の更新を行います。')
         mer.execute_update()
