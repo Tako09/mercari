@@ -29,6 +29,6 @@ def update_discount():
         print("値下げ対象の商品がありません。プログラムを終了します。")
     
     time.sleep(10)
-    mer.open_excel()
+    # mer.open_excel()
 
 update_discount()
