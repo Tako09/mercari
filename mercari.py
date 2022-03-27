@@ -81,20 +81,34 @@ def login_mercari_first_time():
 
     return driver
 
+'''
+def button_click(driver, button_text):
+    buttons = driver.find_elements(By.TAG_NAME, "button")
+    time.sleep(1) # 探しきれずスルーする時がある
+    clicked = False
+    for button in buttons:
+        print(button.text)
+        # 指定のテキスト文字が入ってるボタンをクリックする
+        if button.text == button_text:
+            button.click()
+            clicked = True
+            break
+    return clicked
+'''
+
 ## スクレイピング関数
 def login_mercari(driver, url):
     # item_urlの取得用関数
     
     try:
         driver.get(url)
-        time.sleep(2) # 5秒後に自動的に閉じる - 変更の必要あり
+        time.sleep(3) # 5秒後に自動的に閉じる - 変更の必要あり
         # 「もっと見る」ボタンがあればクリック
         for i in range(100):
             try:
-                click_flg = button_click(driver, 'もっと見る')
-                time.sleep(3)
-                if not click_flg:
-                    break
+                driver.find_element(By.XPATH, '//*[@id="currentListing"]/div/mer-button/button').click()
+                time.sleep(1)
+                # click_flg = button_click(driver, 'もっと見る')
             except:
                 break
     except:        
@@ -245,8 +259,7 @@ def update_items():
     global df 
 
     if os.path.exists(df_path):
-        driver = get_driver()
-        page_source = login_mercari(driver, URL)
+        page_source = login_mercari(get_driver(page_load_strategy='normal'), URL)
         item_urls = get_item_urls(page_source)
 
         tmp_df = pd.read_excel(df_path)
@@ -290,21 +303,7 @@ def update_items():
             return pd.concat([merge_df,tmp], join='inner')
         
         return merge_df # 増えた分がないときはこれを返す。
-    return 0
-
-def button_click(driver, button_text):
-    buttons = driver.find_elements(By.TAG_NAME, "button")
-    time.sleep(1) # 探しきれずスルーする時がある
-    clicked = False
-    for button in buttons:
-        # 指定のテキスト文字が入ってるボタンをクリックする
-        # print(button.text)
-        if button.text == button_text:
-            button.click()
-            clicked = True
-            break
-    return clicked
-            
+    return 0         
 
 def change_mercari_price(driver):
     # 一定の日にちが立った商品をまとめて値下げをする
@@ -516,16 +515,14 @@ def get_item_info():
 
     # 各itemのurlの取得
     print('各商品の詳細情報のurlを取得中！')
-    driver = get_driver()
-    page_source = login_mercari(driver, URL)
+    page_source = login_mercari(get_driver(page_load_strategy='normal'), URL)
     item_urls = get_item_urls(page_source)
     edit_urls = get_edit_urls(item_urls)
     print('商品数: ', str(len(item_urls)))
     # return item_urls
 
     # 詳細情報の取得
-    driver = get_driver()
-    srcs = login_mercari_2(driver, item_urls)
+    srcs = login_mercari_2(get_driver(), item_urls)
     print('item info done')
 
     df['item_url'] = item_urls # 出品情報
@@ -595,4 +592,4 @@ def execute_update():
     make_dir()
     get_excel(df)
     
-# login_mercari_first_time()
+#login_mercari_first_time()
