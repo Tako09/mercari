@@ -8,8 +8,16 @@ from tkinter import messagebox as mb
 import mercari as mer
 import os
 import time
+import schedule
 
 path = mer.df_path
+
+def main():
+    print('待機中')
+    #AM1:00のjob実行を登録
+    schedule.every().day.at("01:00").do(update_discount)
+    print('エクセルを開きます')
+    mer.open_excel()
 
 def update_discount():
     # 更新と値下げを実行する関数
@@ -28,7 +36,7 @@ def update_discount():
     else:
         print("値下げ対象の商品がありません。プログラムを終了します。")
     
-    time.sleep(10)
-    # mer.open_excel()
+    time.sleep(5)
 
-update_discount()
+if __name__ == '__main__':
+    main()
