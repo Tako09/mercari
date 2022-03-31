@@ -107,7 +107,7 @@ def login_mercari(driver, url):
         for i in range(100):
             try:
                 driver.find_element(By.XPATH, '//*[@id="currentListing"]/div/mer-button/button').click()
-                time.sleep(1)
+                time.sleep(3)
                 # click_flg = button_click(driver, 'もっと見る')
             except:
                 break
@@ -134,7 +134,7 @@ def login_mercari_2(driver, item_urls):
             driver.execute_script("window.open()") # 新しいタブを開く
             driver.switch_to.window(driver.window_handles[1]) # 新しいタブに切り替える
             driver.get(url)
-            time.sleep(2) # 5秒後に自動的に閉じる - 変更の必要あり
+            time.sleep(3) # 5秒後に自動的に閉じる - 変更の必要あり
             srcs.append(driver.page_source)
             driver.close()
             driver.switch_to.window(driver.window_handles[0]) # 切り替えておかないとエラーになる
